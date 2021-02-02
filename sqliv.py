@@ -24,10 +24,6 @@ src/io
 - their printing format '[CODE] [CURRENTTIME] [MESSAGE]'
 """
 
-# process intruption SIGNALS
-# what to do depends on SIGNAL
-SAVE_AND_EXIT = "SAVE_AND_EXIT"
-
 # search engine instance
 google = search.Google()
 
@@ -38,16 +34,8 @@ def massiveScan(websites):
     # scan each website one by one
     vulnerables = []
     for website in websites:
-        io.stdout("scanning {:0>2}/{} {}".format(websites.index(website)+1, len(websites), website), end="")
-
-        try:
-            is_vulnerable = scanner.scan(website)
-        except KeyboardInterrupt:
-            print ""  # move carriage return to newline
-            io.stdout("process interrupted, skipping sqli scanning")
-            return vulnerables
-
-        if is_vulnerable:
+        io.stdout("scanning {}".format(website), end="")
+        if scanner.scan(website):
             io.showsign(" vulnerable")
             vulnerables.append(website)
             continue
@@ -85,42 +73,20 @@ def singleScan(url):
     # crawl and scan the links
     # if crawl cannot find links, do some reverse domain
     io.stdout("crawling {}".format(url))
-    urls = crawler.crawl(url)
-
-    if not urls:
+    websites = crawler.crawl(url)
+    if not websites:
         io.stdout("found no suitable urls to test SQLi")
         #io.stdout("you might want to do reverse domain")
         return False
 
-    io.stdout("found {} urls from crawling".format(len(urls)))
-    vulnerables = massiveScan(urls)
+    io.stdout("found {} urls from crawling".format(len(websites)))
+    vulnerables = massiveScan(websites)
 
     if vulnerables == []:
         io.stdout("no SQL injection vulnerability found")
         return False
 
     return vulnerables
-
-
-def getServerInfo(urls):
-    """get server information of given url and return as array"""
-
-    table_data = []
-    skip = False  # skip getting server info
-
-    for each in urls:
-        if not skip:
-            try:
-                server_info = serverinfo.check(each)
-            except KeyboardInterrupt:
-                skip = True
-                io.stdout("skipping server info scanning process")
-        else:
-            server_info = ['-', '-']
-
-        table_data.append([each, server_info[0], server_info[1]])
-
-    return table_data
 
 
 def showDomainInfo(urls):
@@ -130,11 +96,7 @@ def showDomainInfo(urls):
     domains_info = []
 
     for each in urls:
-        try:
-            server_info = serverinfo.check(each)
-        except KeyboardInterrupt:
-            server_info = ["-", "-"]
-
+        server_info = serverinfo.check(each)
         domains_info.append([each, server_info[0], server_info[1]])
 
     # print in table
@@ -161,12 +123,20 @@ if __name__ == "__main__":
     if args.dork != None and args.engine != None:
         io.stdout("searching for websites with given dork")
 
+        """
         # get websites based on search engine
         if args.engine == "google":
             websites = google.search(args.dork, args.page)
         else:
             io.stderr("invalid search engine")
             exit(1)
+        """
+
+        websites = ["http://www.sallatykka.com/web/index.php?id=31",
+        "http://www.icdcprague.org/index.php?id=10",
+        "http://www.tadspec.com/index.php?id=15",
+        "http://www.redseahotels.com/index.php?id=289"
+        ]
 
         io.stdout("{} websites found".format(len(websites)))
 
@@ -184,15 +154,20 @@ if __name__ == "__main__":
 
             exit(0)
 
-        io.stdout("scanning server information")
-        table_data = getServerInfo(vulnerables)
+        io.stdout("vulnerable websites")
+
+        table_data = []
+        for each in vulnerables:
+            server_info = serverinfo.check(each)
+            table_data.append([each, server_info[0], server_info[1]])
+
         io.printVulnerablesWithInfo(table_data)
 
 
     # do reverse domain of given site
     elif args.target != None and args.reverse:
-        io.stdout("finding domains with same server as {}".format(args.target))
-        domains = reverseip.reverseip(args.target)
+        io.stdout("finding domains with same server as {}".format(args.t))
+        domains = reverseip.reverseip(args.t)
 
         if domains == []:
             io.stdout("no domain found with reversing ip")
@@ -230,8 +205,13 @@ if __name__ == "__main__":
             io.stdout("no vulnerables webistes from reverse domains")
             exit(0)
 
-        io.stdout("scanning server information")
-        table_data = getServerInfo(vulnerables)
+        io.stdout("vulnerable websites")
+
+        table_data = []
+        for each in vulnerables:
+            server_info = serverinfo.check(each)
+            table_data.append(each, server_info[0], server_info[1])
+
         io.printVulnerablesWithInfo(table_data)
 
 
@@ -243,6 +223,7 @@ if __name__ == "__main__":
             exit(0)
 
         # show domain information of target urls
-        showDomainInfo([args.target])
-        print ""  # give space between two table
+        showDomainInfo([args.t])
+
+        io.stdout("vulnerable websites")
         io.printVulnerables(vulnerables)

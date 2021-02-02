@@ -13,11 +13,7 @@ def check(url):
 
     info = []  # to store server info
     url = "https://aruljohn.com/webserver/" + url
-
-    try:
-        result = html.getHTML(url)
-    except KeyboardInterrupt:
-        raise KeyboardInterrupt
+    result = html.getHTML(url)
 
     try:
         soup = bs4.BeautifulSoup(result, "lxml")
